@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Video Proctoring</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f6f8fa;
+        --card: #fff;
+        --muted: #7d8a8f;
+        --accent: #3498db;
+        --success: #2ecc71;
+        --danger: #e74c3c;
+        --gold: #f39c12;
+        --radius: 12px;
+        --shadow: 0 8px 30px rgba(44, 62, 80, 0.06);
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        font-family: Inter, system-ui, Segoe UI, Roboto, Arial;
+        color: #222;
+      }
+      .page {
+        max-width: 1100px;
+        margin: 28px auto;
+        padding: 18px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .container {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      .video-column {
+        width: 680px;
+      }
+      .video-card {
+        position: relative;
+        width: 640px;
+        height: 480px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #000;
+        box-shadow: var(--shadow);
+      }
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #000;
+      }
+      #overlay {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .btn {
+        padding: 9px 14px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .btn-start {
+        background: var(--success);
+        color: #fff;
+      }
+      .btn-stop {
+        background: var(--danger);
+        color: #fff;
+      }
+      .btn-upload {
+        background: var(--accent);
+        color: #fff;
+      }
+      .sidebar {
+        flex: 1;
+        min-width: 300px;
+        background: var(--card);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+      #eventLog {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0;
+        max-height: 300px;
+        overflow: auto;
+        border-radius: 8px;
+        border: 1px solid #f0f0f0;
+        background: #fafafa;
+      }
+      #eventLog li {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 13px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 8px;
+        color: #fff;
+        font-weight: 700;
+        margin-right: 8px;
+      }
+      @media (max-width: 980px) {
+        .container {
+          flex-direction: column;
+        }
+        .video-card,
+        .video-column {
+          width: 92vw;
+          max-width: 640px;
+        }
+        .sidebar {
+          width: 92vw;
+          max-width: 640px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>🎥 Video Proctoring</h1>
+        <p style="color: var(--muted)">
+          Real-time focus & item detection • Press Start to begin
+        </p>
+      </header>
+
+      <div class="container">
+        <div class="video-column">
+          <div class="video-card" aria-live="polite">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="overlay" width="640" height="480"></canvas>
+          </div>
+
+          <div class="controls">
+            <button id="startBtn" class="btn btn-start">Start</button>
+            <button id="stopBtn" class="btn btn-stop" disabled>Stop</button>
+            <button id="uploadBtn" class="btn btn-upload" disabled>
+              Upload
+            </button>
+            <button
+              id="previewBtn"
+              class="btn"
+              style="background: #fff; border: 1px solid #e6e6e6"
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+
+        <aside class="sidebar" role="complementary">
+          <h3>Live Status</h3>
+          <div id="statusBox" style="font-weight: 700; margin-bottom: 8px">
+            Idle
+          </div>
+          <div style="margin-bottom: 8px">
+            Integrity Score:
+            <span
+              id="scoreBox"
+              style="
+                background: #eafff0;
+                padding: 6px 8px;
+                border-radius: 8px;
+                font-weight: 700;
+              "
+              >100</span
+            >
+          </div>
+          <div id="badgeArea"></div>
+
+          <div style="margin-top: 12px; font-weight: 700">Event Log</div>
+          <ul id="eventLog"></ul>
+
+          <div style="margin-top: 12px; font-weight: 700">Report</div>
+          <button
+            id="genReportBtn"
+            class="btn"
+            style="background: var(--gold); color: #fff; margin-top: 8px"
+          >
+            Download CSV
+          </button>
+        </aside>
+      </div>
+    </div>
+
+    <!-- scripts (tf + models) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.12.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+
+    <script src="app.js"></script>
+  </body>
+</html>
